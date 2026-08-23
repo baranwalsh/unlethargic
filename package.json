@@ -1,0 +1,36 @@
+{
+  "name": "unlethargic",
+  "version": "1.0.0",
+  "description": "A minimalist, sepia-toned task and time agenda manager.",
+  "main": "main.js",
+  "author": "You",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --mac dmg"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.you.unlethargic",
+    "productName": "UnLethargic",
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": ["dmg"]
+    },
+    "dmg": {
+      "title": "Install UnLethargic",
+      "contents": [
+        { "x": 130, "y": 220, "type": "file" },
+        { "x": 390, "y": 220, "type": "link", "path": "/Applications" }
+      ]
+    }
+  }
+}
