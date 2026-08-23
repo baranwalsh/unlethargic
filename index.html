@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>UnLethargic</title>
+<style>
+  :root{
+    --paper:      #f2e8d4;
+    --paper-deep: #e9dcc0;
+    --paper-line: #d8c7a2;
+    --ink:        #3c2e1e;
+    --ink-soft:   #7a6650;
+    --ink-faint:  #a3907a;
+    --rust:       #a8562b;
+    --rust-deep:  #86431f;
+    --olive:      #6f7d4a;
+    --brick:      #8c3b2e;
+    --shadow:     rgba(60, 46, 30, 0.18);
+    --radius:     3px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+
+  ::selection { background: var(--rust); color: var(--paper); }
+
+  #app {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ---------- Shared chrome ---------- */
+  .col-header {
+    padding: 26px 28px 14px 28px;
+    -webkit-app-region: drag;
+  }
+  .brand {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .brand .dot { color: var(--rust); }
+  .subhead {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin-top: 3px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  /* ================= LEFT: LEDGER (task list) ================= */
+  .ledger {
+    border-right: 1px solid var(--paper-line);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .ledger-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 28px 28px 28px;
+  }
+
+  .new-task-form {
+    background: var(--paper-deep);
+    border: 1px solid var(--paper-line);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 22px;
+  }
+  .new-task-form input[type="text"],
+  .new-task-form input[type="date"],
+  .new-task-form input[type="number"] {
+    font-family: inherit;
+    background: var(--paper);
+    border: 1px solid var(--paper-line);
+    border-radius: var(--radius);
+    color: var(--ink);
+    padding: 7px 9px;
+    font-size: 14px;
+  }
+  .new-task-form input[type="text"] {
+    width: 100%;
+    font-size: 15.5px;
+    margin-bottom: 9px;
+  }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .field-label {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    margin-right: 2px;
+  }
+  .num-mini { width: 52px; text-align: center; }
+  .subtask-list { margin: 10px 0 8px 0; }
+  .subtask-row { display:flex; align-items:center; gap:6px; margin-bottom:6px; }
+  .subtask-row input[type="text"] {
+    margin: 0; font-size: 13.5px; padding: 5px 8px;
+  }
+  .ghost-btn {
+    background: transparent;
+    border: 1px dashed var(--ink-faint);
+    color: var(--ink-soft);
+    border-radius: var(--radius);
+    font-size: 12px;
+    padding: 4px 9px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .ghost-btn:hover { border-color: var(--rust); color: var(--rust); }
+  .x-btn {
+    background: none; border: none; color: var(--ink-faint);
+    cursor: pointer; font-size: 15px; line-height: 1; padding: 2px 4px;
+  }
+  .x-btn:hover { color: var(--brick); }
+
+  .primary-btn {
+    background: var(--rust);
+    color: var(--paper);
+    border: none;
+    border-radius: var(--radius);
+    padding: 9px 16px;
+    font-size: 14px;
+    font-family: inherit;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    margin-top: 10px;
+  }
+  .primary-btn:hover { background: var(--rust-deep); }
+  .primary-btn:disabled { background: var(--ink-faint); cursor: not-allowed; }
+  .primary-btn.full { width: 100%; }
+
+  .task-card {
+    background: var(--paper-deep);
+    border: 1px solid var(--paper-line);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    cursor: grab;
+    transition: box-shadow .15s ease, transform .15s ease, opacity .15s ease;
+  }
+  .task-card:active { cursor: grabbing; }
+  .task-card.dragging { opacity: 0.4; }
+  .task-card:hover { box-shadow: 0 3px 10px var(--shadow); transform: translateY(-1px); }
+  .task-card.in-agenda { border-color: var(--rust); }
+  .task-card.done { opacity: 0.5; }
+  .task-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .task-name { font-size: 16px; font-weight: 600; }
+  .task-name.strike { text-decoration: line-through; }
+  .task-meta { font-size: 12px; color: var(--ink-soft); margin-top: 4px; display: flex; gap: 12px; flex-wrap: wrap;}
+  .task-meta .tag {
+    font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    background: var(--paper);
+    border: 1px solid var(--paper-line);
+    padding: 1px 6px;
+    border-radius: 2px;
+  }
+  .task-sub { margin-top: 8px; padding-left: 2px; }
+  .task-sub-item { font-size: 13px; color: var(--ink-soft); display:flex; align-items:center; gap:6px; margin-top: 3px; }
+  .task-sub-item.done { text-decoration: line-through; opacity: 0.6; }
+  .in-agenda-badge {
+    font-size: 10px; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--rust); border: 1px solid var(--rust); border-radius: 2px;
+    padding: 1px 5px; white-space: nowrap;
+  }
+  .empty-note {
+    color: var(--ink-faint); font-size: 13.5px; font-style: italic;
+    padding: 30px 4px; text-align: center;
+  }
+
+  /* ================= RIGHT: RECEIPT (agenda) ================= */
+  .receipt-col {
+    background: var(--paper-deep);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .budget-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 0 28px 14px 28px;
+  }
+  .budget-row input {
+    font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    width: 64px; text-align: center; font-size: 15px;
+    background: var(--paper); border: 1px solid var(--paper-line);
+    border-radius: var(--radius); padding: 6px;
+    color: var(--ink);
+  }
+
+  .receipt-wrap {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 28px 20px 28px;
+  }
+
+  .receipt {
+    background: var(--paper);
+    box-shadow: 0 6px 18px var(--shadow);
+    padding: 22px 22px 4px 22px;
+    position: relative;
+    font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    color: var(--ink);
+  }
+  .receipt::before, .receipt::after {
+    content: "";
+    display: block;
+    height: 10px;
+    background-image: linear-gradient(135deg, var(--paper-deep) 25%, transparent 25%),
+                       linear-gradient(225deg, var(--paper-deep) 25%, transparent 25%);
+    background-size: 14px 20px;
+    background-position: left top;
+  }
+  .receipt::after { transform: scaleY(-1); }
+
+  .drop-zone {
+    min-height: 90px;
+    border: 1px dashed var(--paper-line);
+    border-radius: 2px;
+    margin-bottom: 6px;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  .drop-zone.drag-over { background: rgba(168, 86, 43, 0.08); border-color: var(--rust); }
+
+  .receipt-title { text-align: center; font-size: 13px; letter-spacing: 0.12em; margin-bottom: 4px; }
+  .receipt-sub { text-align: center; font-size: 10.5px; color: var(--ink-soft); margin-bottom: 14px; }
+  .receipt-divider { border: none; border-top: 1px dashed var(--ink-faint); margin: 10px 0; }
+
+  .line-item {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 13px; padding: 6px 0; gap: 8px;
+  }
+  .line-item .li-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .line-item .li-time { color: var(--ink-soft); }
+  .line-item .li-remove {
+    background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 13px;
+  }
+  .line-item .li-remove:hover { color: var(--brick); }
+  .line-item.current { color: var(--rust); font-weight: 700; }
+  .line-item.completed { color: var(--olive); text-decoration: line-through; opacity: .7; }
+
+  .receipt-total-row {
+    display: flex; justify-content: space-between; font-size: 14px;
+    padding: 10px 0; font-weight: 700;
+  }
+  .receipt-remaining {
+    display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0;
+    color: var(--ink-soft);
+  }
+  .receipt-remaining.over { color: var(--brick); font-weight: 700; }
+  .receipt-wasted { display:flex; justify-content: space-between; font-size: 13px; padding: 4px 0; color: var(--brick); }
+
+  .barcode {
+    height: 26px; margin: 14px 0 6px 0;
+    background: repeating-linear-gradient(90deg, var(--ink) 0 2px, transparent 2px 4px, var(--ink) 4px 5px, transparent 5px 9px);
+    opacity: 0.8;
+  }
+
+  .agenda-actions { padding: 6px 28px 22px 28px; }
+
+  /* ---------- Focus / timer mode ---------- */
+  .focus-view { padding: 6px 22px 22px 22px; text-align: center; }
+  .focus-taskname { font-size: 21px; font-weight: 700; margin-top: 6px; }
+  .focus-clock {
+    font-size: 52px; font-weight: 700; letter-spacing: 0.02em;
+    margin: 18px 0 6px 0;
+  }
+  .focus-clock.paused { color: var(--ink-faint); }
+  .focus-progress {
+    height: 6px; background: var(--paper-deep); border-radius: 3px; overflow: hidden; margin: 10px 0 18px 0;
+  }
+  .focus-progress > div { height: 100%; background: var(--rust); }
+  .focus-controls { display: flex; justify-content: center; gap: 10px; margin-bottom: 6px; }
+  .icon-btn {
+    width: 46px; height: 46px; border-radius: 50%;
+    border: 1px solid var(--paper-line);
+    background: var(--paper);
+    font-size: 17px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink);
+  }
+  .icon-btn:hover { border-color: var(--rust); color: var(--rust); }
+  .icon-btn.big { width: 58px; height: 58px; font-size: 22px; background: var(--rust); color: var(--paper); border: none; }
+  .icon-btn.big:hover { background: var(--rust-deep); }
+  .wasted-flag { font-size: 12px; color: var(--brick); margin-top: 10px; min-height: 16px; }
+
+  ::-webkit-scrollbar { width: 9px; }
+  ::-webkit-scrollbar-thumb { background: var(--paper-line); border-radius: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- LEFT: LEDGER -->
+  <section class="ledger">
+    <div class="col-header">
+      <div class="brand">UnLethargic<span class="dot">.</span></div>
+      <div class="subhead">the task ledger</div>
+    </div>
+    <div class="ledger-body">
+
+      <div class="new-task-form">
+        <input type="text" id="taskNameInput" placeholder="What needs doing?" />
+        <div class="row" style="margin-bottom:9px;">
+          <span class="field-label">Due</span>
+          <input type="date" id="taskDueInput" />
+          <span class="field-label" style="margin-left:6px;">Est. time</span>
+          <input type="number" min="0" class="num-mini" id="taskHoursInput" placeholder="h" />
+          <span style="color:var(--ink-soft);font-size:12px;">h</span>
+          <input type="number" min="0" max="59" class="num-mini" id="taskMinsInput" placeholder="m" />
+          <span style="color:var(--ink-soft);font-size:12px;">m</span>
+        </div>
+
+        <div class="subtask-list" id="subtaskList"></div>
+        <button class="ghost-btn" id="addSubtaskBtn">+ subtask</button>
+
+        <button class="primary-btn full" id="addTaskBtn">Add to ledger</button>
+      </div>
+
+      <div id="taskListWrap"></div>
+    </div>
+  </section>
+
+  <!-- RIGHT: RECEIPT / AGENDA -->
+  <section class="receipt-col">
+    <div class="col-header">
+      <div class="brand" style="font-size:19px;">Today's Agenda</div>
+      <div class="subhead">drag tasks in from the ledger</div>
+    </div>
+
+    <div class="budget-row" id="budgetRow">
+      <span class="field-label">Hours to work today</span>
+      <input type="number" min="0" step="0.25" id="budgetHoursInput" value="4" />
+    </div>
+
+    <div class="receipt-wrap">
+      <div class="receipt" id="receipt">
+        <div class="receipt-title">★ UNLETHARGIC ★</div>
+        <div class="receipt-sub" id="receiptDate"></div>
+        <hr class="receipt-divider" />
+
+        <div id="planningView">
+          <div class="drop-zone" id="dropZone"></div>
+          <hr class="receipt-divider" />
+          <div class="receipt-total-row"><span>ALLOCATED</span><span id="allocTotal">0:00</span></div>
+          <div class="receipt-remaining" id="remainingRow"><span>REMAINING BUDGET</span><span id="remainingTotal">4:00</span></div>
+        </div>
+
+        <div id="focusView" style="display:none;"></div>
+
+        <div class="receipt-wasted" id="wastedRow" style="display:none;">
+          <span>WASTED (PAUSED)</span><span id="wastedTotal">0:00</span>
+        </div>
+
+        <div class="barcode"></div>
+      </div>
+    </div>
+
+    <div class="agenda-actions" id="agendaActions">
+      <button class="primary-btn full" id="confirmBtn" disabled>Confirm agenda</button>
+    </div>
+  </section>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
